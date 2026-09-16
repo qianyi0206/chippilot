@@ -47,6 +47,21 @@ def print_assistant_text(text: str):
         console.print(text)
 
 
+def stream_text(delta: str):
+    """Print a streamed text delta as-is (no markdown re-render)."""
+    console.print(delta, end="", markup=False, highlight=False)
+
+
+def confirm_tool_call(tool_name: str, tool_input: dict) -> bool:
+    """Interactive 'ask' resolution for the permission engine."""
+    console.print(f"[yellow]Permission needed:[/] {tool_name} {tool_input}")
+    try:
+        answer = console.input("Allow? [y/N] ")
+    except (EOFError, KeyboardInterrupt):
+        return False
+    return answer.strip().lower() in ("y", "yes")
+
+
 def handle_slash_command(
     cmd: str,
     *,

@@ -7,13 +7,15 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from chippilot.core.tool_registry import ToolRegistry
 
+# Tool categories exposed to subagents/teammates (harness-internal tools excluded).
+DOMAIN_CATEGORIES = {
+    "base", "git", "lsf", "jira", "eda", "storage",
+    "monitoring", "release", "knowledge", "worktree",
+}
 
-def register_all_tools(registry: "ToolRegistry", **managers):
-    """Register all tools into the given registry.
 
-    managers may include: todo_manager, task_manager, bg_manager, bus,
-    team_manager, skill_loader, knowledge_loader, worktree_manager, etc.
-    """
+def register_domain_tools(registry: "ToolRegistry"):
+    """Register all domain tools (base/git/mock domains). No managers needed."""
     from chippilot.tools.base import register_base_tools
     register_base_tools(registry)
 
@@ -37,6 +39,15 @@ def register_all_tools(registry: "ToolRegistry", **managers):
 
     from chippilot.tools.release_tools import register_release_tools
     register_release_tools(registry)
+
+
+def register_all_tools(registry: "ToolRegistry", **managers):
+    """Register all tools into the given registry.
+
+    managers may include: todo_manager, task_manager, bg_manager, bus,
+    team_manager, skill_loader, knowledge_loader, worktree_manager, etc.
+    """
+    register_domain_tools(registry)
 
     # Core harness tools (from managers)
     _register_harness_tools(registry, **managers)
@@ -91,7 +102,7 @@ def _register_harness_tools(registry: "ToolRegistry", **mgrs):
                 "properties": {"name": {"type": "string"}},
                 "required": ["name"],
             },
-        }, category="harness")
+        }, category="harness", readonly=True)
 
     knowledge_loader = mgrs.get("knowledge_loader")
     if knowledge_loader:
@@ -105,7 +116,7 @@ def _register_harness_tools(registry: "ToolRegistry", **mgrs):
                 },
                 "required": ["topic"],
             },
-        }, category="knowledge")
+        }, category="knowledge", readonly=True)
 
     registry.register("compress", lambda **kw: "Compressing...", {
         "description": "Manually compress conversation context.",
@@ -247,6 +258,56 @@ def _register_harness_tools(registry: "ToolRegistry", **mgrs):
                 "required": ["request_id", "approve"],
             },
         }, category="harness")
+
+    worktree_mgr = mgrs.get("worktree_manager")
+    if worktree_mgr:
+        registry.register("worktree_create", lambda **kw: worktree_mgr.create(
+            kw["name"], kw.get("task_id"), kw.get("base_ref", "HEAD")
+        ), {
+            "description": "Create a git worktree for isolated work.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Worktree name ([A-Za-z0-9._-])"},
+                    "task_id": {"type": "integer"},
+                    "base_ref": {"type": "string", "description": "Base ref, default HEAD"},
+                },
+                "required": ["name"],
+            },
+        }, category="worktree")
+        registry.register("worktree_list", lambda **kw: worktree_mgr.list_all(), {
+            "description": "List managed git worktrees.",
+            "input_schema": {"type": "object", "properties": {}},
+        }, category="worktree", readonly=True)
+        registry.register("worktree_run", lambda **kw: worktree_mgr.run_in(kw["name"], kw["command"]), {
+            "description": "Run a command inside a worktree.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "command": {"type": "string"},
+                },
+                "required": ["name", "command"],
+            },
+        }, category="worktree")
+        registry.register("worktree_remove", lambda **kw: worktree_mgr.remove(kw["name"], kw.get("force", False)), {
+            "description": "Remove a git worktree.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "force": {"type": "boolean"},
+                },
+                "required": ["name"],
+            },
+        }, category="worktree")
+        registry.register("worktree_events", lambda **kw: worktree_mgr.events.list_recent(kw.get("limit", 20)), {
+            "description": "Show recent worktree lifecycle events.",
+            "input_schema": {
+                "type": "object",
+                "properties": {"limit": {"type": "integer"}},
+            },
+        }, category="worktree", readonly=True)
 
     registry.register("idle", lambda **kw: "Lead does not idle.", {
         "description": "Enter idle state.",

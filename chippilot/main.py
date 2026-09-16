@@ -23,12 +23,15 @@ from chippilot.core.skills import SkillLoader
 from chippilot.core.subagent import make_subagent_runner
 from chippilot.core.compression import auto_compact
 from chippilot.core.protocols import make_shutdown_handler, make_plan_handler
+from chippilot.core.safety import PermissionEngine
+from chippilot.core.worktrees import WorktreeManager
 from chippilot.knowledge.indexer import KnowledgeIndexer
 from chippilot.knowledge.loader import KnowledgeLoader
 from chippilot.prompts.system import build_system_prompt
 from chippilot.tools import register_all_tools
 from chippilot.cli import (
     console, print_banner, print_tool_call, print_assistant_text,
+    stream_text, confirm_tool_call,
     handle_slash_command,
 )
 
@@ -36,21 +39,25 @@ from chippilot.cli import (
 def main():
     client = create_client()
 
+    # --- Registry first: teammates/subagents share its schemas + dispatch ---
+    permission_engine = PermissionEngine()
+    registry = ToolRegistry(permission_engine=permission_engine)
+
     # --- Initialize all managers ---
     todo = TodoManager()
     task_mgr = TaskManager()
     bg = BackgroundManager()
     bus = MessageBus()
-    team = TeammateManager(bus, task_mgr, client)
+    worktree_mgr = WorktreeManager()
+    team = TeammateManager(bus, task_mgr, client, registry=registry, worktree_mgr=worktree_mgr)
     skill_loader = SkillLoader()
     knowledge_indexer = KnowledgeIndexer()
     knowledge_loader = KnowledgeLoader(knowledge_indexer)
-    subagent_runner = make_subagent_runner(client, MODEL)
+    subagent_runner = make_subagent_runner(client, MODEL, registry)
     shutdown_handler = make_shutdown_handler(bus)
     plan_handler = make_plan_handler(bus)
 
-    # --- Build registry ---
-    registry = ToolRegistry()
+    # --- Populate registry ---
     register_all_tools(
         registry,
         todo_manager=todo,
@@ -63,6 +70,7 @@ def main():
         subagent_runner=subagent_runner,
         shutdown_handler=shutdown_handler,
         plan_handler=plan_handler,
+        worktree_manager=worktree_mgr,
     )
 
     # --- System prompt ---
@@ -120,7 +128,7 @@ def main():
 
         history.append({"role": "user", "content": query})
 
-        agent_loop(
+        result = agent_loop(
             history,
             client=client,
             model=MODEL,
@@ -130,10 +138,12 @@ def main():
             bus=bus,
             todo_manager=todo,
             on_tool_call=print_tool_call,
+            on_text=stream_text,
+            approve=confirm_tool_call,
         )
 
-        # Print assistant response
-        if history:
+        # Print assistant response unless it was already streamed
+        if history and not result.get("streamed"):
             last = history[-1]
             if last.get("role") == "assistant":
                 content = last.get("content", [])

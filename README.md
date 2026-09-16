@@ -34,6 +34,20 @@ ChipPilot is built on a 12-mechanism agent harness (inspired by [learn-claude-co
 - **Monitoring** (3 tools): job monitor, host status, Grafana
 - **Release** (3 tools): CSR flow, verilog line count, IP version management
 
+## MCP Server
+
+All domain tools are also exposed as a stdio MCP server, so external MCP clients
+(Claude Desktop, Cursor, other agents) can call them directly:
+
+```bash
+pip install -e ".[mcp]"
+chippilot-mcp   # or: python -m chippilot.mcp_server
+```
+
+Tool schemas come from the same registry the CLI uses — mock and real adapters
+share one schema set. Permission rules (`.chippilot/permissions.json`) apply on
+the server side too.
+
 ## Knowledge System
 
 68 domain documents (Chinese) covering EDA, LSF, Git, storage, monitoring, scripting, and workflows. Two-layer injection:
@@ -99,8 +113,9 @@ chippilot/
 │   ├── main.py             # Entry point
 │   ├── cli.py              # REPL + slash commands
 │   ├── config.py           # Configuration center
-│   ├── core/               # 12 harness mechanisms
+│   ├── core/               # 12 harness mechanisms + llm/safety
 │   ├── tools/              # 35+ tool implementations
+│   ├── mcp_server.py       # MCP server exposing domain tools
 │   ├── knowledge/          # Document indexer + loader
 │   └── prompts/            # System prompt assembly
 ├── skills/                 # 7 SKILL.md operation guides
@@ -116,6 +131,8 @@ chippilot/
 - Anthropic Claude API (pre-wired for multi-provider)
 - Rich (terminal rendering)
 - prompt_toolkit (REPL)
+- MCP SDK (optional: `pip install -e ".[mcp]"`)
+- pytest (optional: `pip install -e ".[dev]"`)
 
 ## License
 

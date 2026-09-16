@@ -108,7 +108,7 @@ def register_git_tools(registry: "ToolRegistry"):
     registry.register("git_status", git_status, {
         "description": "Show git status (real).",
         "input_schema": {"type": "object", "properties": {}},
-    }, category="git")
+    }, category="git", readonly=True)
 
     registry.register("git_log", git_log, {
         "description": "Show git log (real).",
@@ -116,7 +116,7 @@ def register_git_tools(registry: "ToolRegistry"):
             "type": "object",
             "properties": {"count": {"type": "integer", "description": "Number of commits to show"}},
         },
-    }, category="git")
+    }, category="git", readonly=True)
 
     registry.register("git_diff", git_diff, {
         "description": "Show git diff (real).",
@@ -127,7 +127,7 @@ def register_git_tools(registry: "ToolRegistry"):
                 "path": {"type": "string"},
             },
         },
-    }, category="git")
+    }, category="git", readonly=True)
 
     registry.register("git_branch", git_branch, {
         "description": "Git branch operations: list/create/switch/delete (real).",

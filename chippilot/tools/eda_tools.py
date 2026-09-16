@@ -139,7 +139,7 @@ def register_eda_tools(registry: "ToolRegistry"):
     registry.register("eda_module_list", eda_module_list, {
         "description": "List available EDA tool modules and their load status (mock).",
         "input_schema": {"type": "object", "properties": {}},
-    }, category="eda")
+    }, category="eda", readonly=True)
 
     registry.register("eda_tool_version", eda_tool_version, {
         "description": "Show EDA tool versions installed (mock).",
@@ -147,7 +147,7 @@ def register_eda_tools(registry: "ToolRegistry"):
             "type": "object",
             "properties": {"name": {"type": "string"}},
         },
-    }, category="eda")
+    }, category="eda", readonly=True)
 
     registry.register("eda_run_helium", eda_run_helium, {
         "description": "Run Cadence Helium verification (mock).",
@@ -167,4 +167,4 @@ def register_eda_tools(registry: "ToolRegistry"):
             "type": "object",
             "properties": {"feature": {"type": "string", "description": "License feature name"}},
         },
-    }, category="eda")
+    }, category="eda", readonly=True)
