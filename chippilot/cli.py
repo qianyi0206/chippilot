@@ -47,6 +47,29 @@ def print_assistant_text(text: str):
         console.print(text)
 
 
+def stream_text(delta: str):
+    """Print a streamed text delta as-is (no markdown re-render)."""
+    console.print(delta, end="", markup=False, highlight=False)
+
+
+def confirm_tool_call(tool_name: str, tool_input: dict) -> bool:
+    """Interactive 'ask' resolution for the permission engine."""
+    if tool_name == "exit_plan_mode":
+        console.print(Panel(
+            Markdown(str(tool_input.get("plan", "(empty plan)"))),
+            title="[bold cyan]Proposed plan[/]", border_style="cyan",
+        ))
+        prompt = "Execute this plan? [y/N] "
+    else:
+        console.print(f"[yellow]Permission needed:[/] {tool_name} {tool_input}")
+        prompt = "Allow? [y/N] "
+    try:
+        answer = console.input(prompt)
+    except (EOFError, KeyboardInterrupt):
+        return False
+    return answer.strip().lower() in ("y", "yes")
+
+
 def handle_slash_command(
     cmd: str,
     *,
@@ -56,6 +79,7 @@ def handle_slash_command(
     bus: "MessageBus | None" = None,
     bg_manager: "BackgroundManager | None" = None,
     knowledge_indexer: "KnowledgeIndexer | None" = None,
+    registry: "ToolRegistry | None" = None,
     compact_fn: callable | None = None,
     lsf_jobs_fn: callable | None = None,
     lsf_queues_fn: callable | None = None,
@@ -68,6 +92,15 @@ def handle_slash_command(
 
     if cmd == "/help":
         _print_help()
+        return True
+
+    if cmd == "/plan":
+        if registry:
+            registry.set_plan_mode(not registry.plan_mode)
+            state = "on (read-only investigation)" if registry.plan_mode else "off"
+            console.print(f"[cyan]Plan mode {state}.[/]")
+        else:
+            console.print("[dim]Plan mode not available.[/]")
         return True
 
     if cmd == "/compact":
@@ -151,6 +184,7 @@ def _print_help():
     table.add_column("Command", style="bold")
     table.add_column("Description")
     table.add_row("/compact", "Compress conversation context")
+    table.add_row("/plan", "Toggle plan mode (read-only)")
     table.add_row("/tasks", "Show task board")
     table.add_row("/team", "Show teammate status")
     table.add_row("/inbox", "Read inbox messages")

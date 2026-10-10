@@ -3,9 +3,16 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from chippilot.config import TOKEN_THRESHOLD
+from chippilot.core.llm import call_llm
+
+PLAN_MODE_SUFFIX = (
+    "\n\n# PLAN MODE\nYou are in read-only plan mode: investigate with the "
+    "available read tools only. When you understand the task, call "
+    "exit_plan_mode with a concrete step-by-step plan for the user to approve."
+)
 
 if TYPE_CHECKING:
     from anthropic import Anthropic
@@ -27,11 +34,16 @@ def agent_loop(
     bus: "MessageBus | None" = None,
     todo_manager: "TodoManager | None" = None,
     compression_enabled: bool = True,
-    on_tool_call: callable | None = None,
-):
+    on_tool_call: Callable[[str, str], None] | None = None,
+    on_text: Callable[[str], None] | None = None,
+    approve: Callable[[str, dict], bool] | None = None,
+) -> dict:
     """Run the agent loop until the model stops using tools.
 
-    Parameters mirror s_full.py but use dependency injection instead of globals.
+    Returns {"streamed": bool} — True when the final response's text was
+    already streamed to the user via on_text (skip re-printing it).
+    API failures are retried inside call_llm; a terminal failure appends a
+    graceful error message instead of crashing the REPL.
     """
     from chippilot.core.compression import estimate_tokens, microcompact, auto_compact
 
@@ -74,18 +86,27 @@ def agent_loop(
                     "content": "Noted inbox messages.",
                 })
 
-        # --- LLM call ---
-        response = client.messages.create(
-            model=model,
-            system=system_prompt,
-            messages=messages,
-            tools=registry.get_tools(),
-            max_tokens=8000,
-        )
+        # --- LLM call (retry inside call_llm) ---
+        system = system_prompt + PLAN_MODE_SUFFIX if registry.plan_mode else system_prompt
+        try:
+            response = call_llm(
+                client,
+                model=model,
+                system=system,
+                messages=messages,
+                tools=registry.get_tools_for_mode(),
+                on_text=on_text,
+            )
+        except Exception as e:
+            messages.append({
+                "role": "assistant",
+                "content": f"[LLM call failed after retries: {e}]",
+            })
+            return {"streamed": False}
         messages.append({"role": "assistant", "content": response.content})
 
         if response.stop_reason != "tool_use":
-            return
+            return {"streamed": on_text is not None}
 
         # --- Tool execution ---
         results = []
@@ -97,7 +118,7 @@ def agent_loop(
                 if block.name == "compress":
                     manual_compress = True
 
-                output = registry.dispatch(block.name, block.input)
+                output = registry.dispatch(block.name, block.input, approve=approve)
 
                 if on_tool_call:
                     on_tool_call(block.name, output)

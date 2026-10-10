@@ -160,7 +160,7 @@ def register_jira_tools(registry: "ToolRegistry"):
                 "assignee": {"type": "string"},
             },
         },
-    }, category="jira")
+    }, category="jira", readonly=True)
 
     registry.register("jira_get", jira_get, {
         "description": "Get Jira issue details (mock).",
@@ -169,7 +169,7 @@ def register_jira_tools(registry: "ToolRegistry"):
             "properties": {"key": {"type": "string"}},
             "required": ["key"],
         },
-    }, category="jira")
+    }, category="jira", readonly=True)
 
     registry.register("jira_transition", jira_transition, {
         "description": "Transition a Jira issue to new status (mock).",

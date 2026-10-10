@@ -81,7 +81,7 @@ def register_storage_tools(registry: "ToolRegistry"):
             "type": "object",
             "properties": {"path": {"type": "string", "description": "Filter by path substring"}},
         },
-    }, category="storage")
+    }, category="storage", readonly=True)
 
     registry.register("storage_disk_usage", storage_disk_usage, {
         "description": "Show disk usage breakdown for a path (mock).",
@@ -89,7 +89,7 @@ def register_storage_tools(registry: "ToolRegistry"):
             "type": "object",
             "properties": {"path": {"type": "string"}},
         },
-    }, category="storage")
+    }, category="storage", readonly=True)
 
     registry.register("storage_snapshot_check", storage_snapshot_check, {
         "description": "Check available snapshots for data recovery (mock).",
@@ -97,4 +97,4 @@ def register_storage_tools(registry: "ToolRegistry"):
             "type": "object",
             "properties": {"volume": {"type": "string"}},
         },
-    }, category="storage")
+    }, category="storage", readonly=True)

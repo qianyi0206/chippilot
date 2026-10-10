@@ -73,7 +73,7 @@ def register_monitoring_tools(registry: "ToolRegistry"):
     registry.register("monitor_jobs", monitor_jobs, {
         "description": "Show job execution health dashboard (mock).",
         "input_schema": {"type": "object", "properties": {}},
-    }, category="monitoring")
+    }, category="monitoring", readonly=True)
 
     registry.register("monitor_hosts", monitor_hosts, {
         "description": "Check compute host status and resources (mock).",
@@ -81,7 +81,7 @@ def register_monitoring_tools(registry: "ToolRegistry"):
             "type": "object",
             "properties": {"name": {"type": "string", "description": "Filter by hostname substring"}},
         },
-    }, category="monitoring")
+    }, category="monitoring", readonly=True)
 
     registry.register("monitor_grafana", monitor_grafana, {
         "description": "Get Grafana monitoring dashboard info (mock).",
@@ -89,4 +89,4 @@ def register_monitoring_tools(registry: "ToolRegistry"):
             "type": "object",
             "properties": {"dashboard": {"type": "string"}},
         },
-    }, category="monitoring")
+    }, category="monitoring", readonly=True)

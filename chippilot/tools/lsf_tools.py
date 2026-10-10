@@ -264,7 +264,7 @@ def register_lsf_tools(registry: "ToolRegistry"):
                 "job_id": {"type": "integer"},
             },
         },
-    }, category="lsf")
+    }, category="lsf", readonly=True)
 
     registry.register("lsf_bqueues", lsf_bqueues, {
         "description": "Show LSF queue information (mock).",
@@ -272,7 +272,7 @@ def register_lsf_tools(registry: "ToolRegistry"):
             "type": "object",
             "properties": {"queue": {"type": "string"}},
         },
-    }, category="lsf")
+    }, category="lsf", readonly=True)
 
     registry.register("lsf_bhist", lsf_bhist, {
         "description": "Show LSF job history (mock).",
@@ -281,7 +281,7 @@ def register_lsf_tools(registry: "ToolRegistry"):
             "properties": {"job_id": {"type": "integer"}},
             "required": ["job_id"],
         },
-    }, category="lsf")
+    }, category="lsf", readonly=True)
 
     registry.register("lsf_bkill", lsf_bkill, {
         "description": "Kill an LSF job (mock).",
@@ -298,7 +298,7 @@ def register_lsf_tools(registry: "ToolRegistry"):
             "type": "object",
             "properties": {"job_id": {"type": "integer"}},
         },
-    }, category="lsf")
+    }, category="lsf", readonly=True)
 
     registry.register("lsf_diagnose_ususp", lsf_diagnose_ususp, {
         "description": "Diagnose USUSP (user-suspended) job causes and fixes (mock).",
@@ -306,9 +306,9 @@ def register_lsf_tools(registry: "ToolRegistry"):
             "type": "object",
             "properties": {"job_id": {"type": "integer"}},
         },
-    }, category="lsf")
+    }, category="lsf", readonly=True)
 
     registry.register("lsf_resource_plan", lsf_resource_plan, {
         "description": "Analyze queue resource allocation and pressure (mock).",
         "input_schema": {"type": "object", "properties": {}},
-    }, category="lsf")
+    }, category="lsf", readonly=True)
