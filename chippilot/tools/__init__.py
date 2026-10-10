@@ -123,6 +123,17 @@ def _register_harness_tools(registry: "ToolRegistry", **mgrs):
         "input_schema": {"type": "object", "properties": {}},
     }, category="harness")
 
+    # Plan mode exit is handled inside registry.dispatch (needs the approve
+    # callback); this handler only runs when plan mode is off.
+    registry.register("exit_plan_mode", lambda **kw: "Plan mode is not active.", {
+        "description": "Present the finished plan and request to leave plan mode.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"plan": {"type": "string"}},
+            "required": ["plan"],
+        },
+    }, category="harness", readonly=True)
+
     bg = mgrs.get("bg_manager")
     if bg:
         registry.register("background_run", lambda **kw: bg.run(kw["command"], kw.get("timeout", 120)), {

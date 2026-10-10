@@ -48,6 +48,30 @@ Tool schemas come from the same registry the CLI uses — mock and real adapters
 share one schema set. Permission rules (`.chippilot/permissions.json`) apply on
 the server side too.
 
+## Safety & Extensibility
+
+**Permission rules** — `.chippilot/permissions.json` holds ordered
+`{tool, pattern, allow|ask|deny}` rules; first match wins. `ask` prompts
+interactively in the CLI and denies everywhere else (subagents, teammates, MCP).
+
+**Hooks** — `.chippilot/settings.json` runs shell commands around tool calls
+(same format/semantics as Claude Code): a `PreToolUse` hook can block a call
+(exit 2, stderr becomes the reason) and a `PostToolUse` hook appends feedback
+to the result. Each command gets a JSON payload
+(`tool_name`, `tool_input`, `tool_output`, `cwd`) on stdin.
+
+```json
+{"hooks": {"PreToolUse": [{"matcher": "bash",
+  "hooks": [{"type": "command", "command": "./scripts/check.sh"}]}]}}
+```
+
+**Plan mode** — `/plan` toggles read-only investigation: write tools are removed
+from the toolset and blocked at dispatch; the agent finishes by calling
+`exit_plan_mode`, which asks for interactive approval before writes resume.
+
+**Prompt caching** — `call_llm` marks the system prompt and tool list with
+ephemeral cache breakpoints, so the stable prefix is reused across loop turns.
+
 ## Knowledge System
 
 68 domain documents (Chinese) covering EDA, LSF, Git, storage, monitoring, scripting, and workflows. Two-layer injection:
@@ -79,6 +103,7 @@ chippilot
 |---------|-------------|
 | `/help` | Show help |
 | `/compact` | Compress context |
+| `/plan` | Toggle plan mode (read-only) |
 | `/tasks` | Task board |
 | `/team` | Teammate status |
 | `/inbox` | Read messages |

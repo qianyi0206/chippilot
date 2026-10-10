@@ -24,6 +24,7 @@ from chippilot.core.subagent import make_subagent_runner
 from chippilot.core.compression import auto_compact
 from chippilot.core.protocols import make_shutdown_handler, make_plan_handler
 from chippilot.core.safety import PermissionEngine
+from chippilot.core.hooks import HookEngine
 from chippilot.core.worktrees import WorktreeManager
 from chippilot.knowledge.indexer import KnowledgeIndexer
 from chippilot.knowledge.loader import KnowledgeLoader
@@ -41,7 +42,8 @@ def main():
 
     # --- Registry first: teammates/subagents share its schemas + dispatch ---
     permission_engine = PermissionEngine()
-    registry = ToolRegistry(permission_engine=permission_engine)
+    hook_engine = HookEngine()
+    registry = ToolRegistry(permission_engine=permission_engine, hook_engine=hook_engine)
 
     # --- Initialize all managers ---
     todo = TodoManager()
@@ -94,7 +96,8 @@ def main():
 
     while True:
         try:
-            query = console.input("[bold cyan]chippilot >>[/] ")
+            mode = " [yellow]\\[plan][/]" if registry.plan_mode else ""
+            query = console.input(f"[bold cyan]chippilot{mode} >>[/] ")
         except (EOFError, KeyboardInterrupt):
             console.print("\n[dim]Goodbye.[/]")
             break
@@ -114,6 +117,7 @@ def main():
                 bus=bus,
                 bg_manager=bg,
                 knowledge_indexer=knowledge_indexer,
+                registry=registry,
                 compact_fn=compact_fn,
                 lsf_jobs_fn=lsf_bjobs_all,
                 lsf_queues_fn=lsf_bqueues_all,

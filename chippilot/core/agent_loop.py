@@ -8,6 +8,12 @@ from typing import TYPE_CHECKING, Callable
 from chippilot.config import TOKEN_THRESHOLD
 from chippilot.core.llm import call_llm
 
+PLAN_MODE_SUFFIX = (
+    "\n\n# PLAN MODE\nYou are in read-only plan mode: investigate with the "
+    "available read tools only. When you understand the task, call "
+    "exit_plan_mode with a concrete step-by-step plan for the user to approve."
+)
+
 if TYPE_CHECKING:
     from anthropic import Anthropic
     from chippilot.core.tool_registry import ToolRegistry
@@ -81,13 +87,14 @@ def agent_loop(
                 })
 
         # --- LLM call (retry inside call_llm) ---
+        system = system_prompt + PLAN_MODE_SUFFIX if registry.plan_mode else system_prompt
         try:
             response = call_llm(
                 client,
                 model=model,
-                system=system_prompt,
+                system=system,
                 messages=messages,
-                tools=registry.get_tools(),
+                tools=registry.get_tools_for_mode(),
                 on_text=on_text,
             )
         except Exception as e:

@@ -28,6 +28,7 @@ def call_llm(
     max_tokens: int = 8000,
     on_text: Callable[[str], None] | None = None,
     max_retries: int = 3,
+    cache: bool = True,
 ):
     """Call the messages API with retry and optional streamed text output.
 
@@ -35,14 +36,25 @@ def call_llm(
     exponential backoff. When on_text is provided the response is streamed and
     each text delta is passed to the callback; the final message (including
     tool_use blocks) is returned either way.
+
+    With cache=True (default) ephemeral prompt-caching breakpoints are placed
+    on the system prompt and the tool list, so the stable prefix is reused
+    across loop iterations instead of being re-billed every call.
     """
     last_err: Exception | None = None
     for attempt in range(max_retries):
         try:
             kwargs: dict = {"model": model, "messages": messages, "max_tokens": max_tokens}
             if system is not None:
-                kwargs["system"] = system
+                kwargs["system"] = (
+                    [{"type": "text", "text": system,
+                      "cache_control": {"type": "ephemeral"}}]
+                    if cache else system
+                )
             if tools is not None:
+                if cache and tools:
+                    tools = [dict(t) for t in tools]
+                    tools[-1] = {**tools[-1], "cache_control": {"type": "ephemeral"}}
                 kwargs["tools"] = tools
             if on_text:
                 with client.messages.stream(**kwargs) as stream:

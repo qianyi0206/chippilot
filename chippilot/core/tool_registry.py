@@ -6,6 +6,7 @@ from typing import Any, Callable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from chippilot.core.safety import PermissionEngine
+    from chippilot.core.hooks import HookEngine
 
 
 class ToolRegistry:
@@ -15,12 +16,18 @@ class ToolRegistry:
     The agent loop uses get_tools() for the LLM API and dispatch() for execution.
     """
 
-    def __init__(self, permission_engine: "PermissionEngine | None" = None):
+    def __init__(
+        self,
+        permission_engine: "PermissionEngine | None" = None,
+        hook_engine: "HookEngine | None" = None,
+    ):
         self._handlers: dict[str, Callable[..., str]] = {}
         self._schemas: dict[str, dict] = {}
         self._categories: dict[str, str] = {}  # name -> category
         self._readonly: set[str] = set()
         self._permission_engine = permission_engine
+        self._hook_engine = hook_engine
+        self._plan_mode = False
 
     def register(
         self,
@@ -61,6 +68,23 @@ class ToolRegistry:
             if cat in cats and (readonly is None or (name in self._readonly) == readonly)
         ]
 
+    @property
+    def plan_mode(self) -> bool:
+        return self._plan_mode
+
+    def set_plan_mode(self, on: bool):
+        self._plan_mode = bool(on)
+
+    def get_tools_for_mode(self) -> list[dict]:
+        """Tools offered to the lead agent: readonly only while in plan mode."""
+        if self._plan_mode:
+            return [
+                self._schemas[name]
+                for name in self._schemas
+                if name in self._readonly
+            ]
+        return self.get_tools()
+
     def dispatch(
         self,
         tool_name: str,
@@ -77,6 +101,18 @@ class ToolRegistry:
         handler = self._handlers.get(tool_name)
         if not handler:
             return f"Unknown tool: {tool_name}"
+        if self._plan_mode:
+            if tool_name == "exit_plan_mode":
+                allowed = approve(tool_name, tool_input) if approve else False
+                if not allowed:
+                    return "Staying in plan mode."
+                self._plan_mode = False
+                return "Exited plan mode. Write tools are now enabled."
+            if tool_name not in self._readonly:
+                return (
+                    f"Plan mode: '{tool_name}' makes changes and is disabled. "
+                    "Investigate with read-only tools, then call exit_plan_mode."
+                )
         if self._permission_engine:
             decision = self._permission_engine.check(tool_name, tool_input)
             if decision == "deny":
@@ -85,11 +121,21 @@ class ToolRegistry:
                 allowed = approve(tool_name, tool_input) if approve else False
                 if not allowed:
                     return f"Permission denied: {tool_name} not approved"
+        pre_warnings = ""
+        if self._hook_engine:
+            allowed, pre_warnings = self._hook_engine.pre_tool_use(tool_name, tool_input)
+            if not allowed:
+                return f"Blocked by hook: {pre_warnings}"
         try:
-            result = handler(**tool_input)
-            return str(result)
+            result = str(handler(**tool_input))
         except Exception as e:
             return f"Error: {e}"
+        if self._hook_engine:
+            feedback = self._hook_engine.post_tool_use(tool_name, tool_input, result)
+            extra = "\n".join(s for s in (pre_warnings, feedback) if s)
+            if extra:
+                result += f"\n[hook] {extra}"
+        return result
 
     def has(self, name: str) -> bool:
         return name in self._handlers

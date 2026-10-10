@@ -14,12 +14,16 @@ from __future__ import annotations
 import asyncio
 
 from chippilot.core.safety import PermissionEngine
+from chippilot.core.hooks import HookEngine
 from chippilot.core.tool_registry import ToolRegistry
 from chippilot.tools import register_domain_tools
 
 
 def build_registry() -> ToolRegistry:
-    registry = ToolRegistry(permission_engine=PermissionEngine())
+    registry = ToolRegistry(
+        permission_engine=PermissionEngine(),
+        hook_engine=HookEngine(),
+    )
     register_domain_tools(registry)
     return registry
 
